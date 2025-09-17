@@ -1,0 +1,36 @@
+# Core RAG Dependencies
+langchain>=0.1.0
+langchain-community>=0.0.20
+langchain-openai>=0.0.8
+openai>=1.12.0
+
+# Vector Database
+chromadb>=0.4.22
+sentence-transformers>=2.2.2
+
+# Document Processing
+beautifulsoup4>=4.12.2
+lxml>=4.9.3
+tree-sitter>=0.20.1
+
+# Code Parsing (for JavaScript code blocks)
+tree-sitter-javascript>=0.20.1
+
+# Utilities
+python-dotenv>=1.0.0
+tqdm>=4.66.1
+pydantic>=2.5.0
+typing-extensions>=4.9.0
+
+# Data Processing
+pandas>=2.1.4
+numpy>=1.24.0
+ujson>=5.9.0  # Fast JSON parsing for large files
+
+# Testing
+pytest>=7.4.3
+pytest-cov>=4.1.0
+
+# Code Quality
+black>=23.12.0
+isort>=5.13.2
