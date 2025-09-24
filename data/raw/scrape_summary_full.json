@@ -1,0 +1,13 @@
+{
+  "total_pages": 1400,
+  "api_reference_pages": 930,
+  "guide_pages": 88,
+  "sample_pages": 382,
+  "total_content_chars": 14682101,
+  "scrape_date": "2025-09-19T14:11:26.782829",
+  "errors": [
+    "Failed to fetch https://developers.arcgis.com/javascript/latest/query/: 404 Client Error: Not Found for url: https://developers.arcgis.com/javascript/latest/query/",
+    "Failed to fetch https://developers.arcgis.com/javascript/latest/edit/: 404 Client Error: Not Found for url: https://developers.arcgis.com/javascript/latest/edit/",
+    "Failed to fetch https://developers.arcgis.com/javascript/layers/: 404 Client Error: Not Found for url: https://developers.arcgis.com/javascript/layers/"
+  ]
+}
