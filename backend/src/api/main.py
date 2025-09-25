@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 import logging
 import time
 import sys
+import os
 from pathlib import Path
 from typing import Optional
 import uvicorn
@@ -33,10 +34,16 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
+# Read the client origin from environment variables
+allowed_origins = []
+client_origin = os.getenv("CLIENT_ORIGIN")
+if client_origin:
+    allowed_origins.append(client_origin)
+
 # Configure CORS for frontend integration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=allowed_origins, # Use the variable here
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
