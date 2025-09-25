@@ -239,6 +239,42 @@ const FormattedText = ({ content, isDark }: { content: string; isDark: boolean }
           key: `header-${i}`
         });
       }
+      else if (line.startsWith('### ')) {
+        if (currentParagraph.length > 0) {
+          result.push({
+            type: 'paragraph',
+            content: currentParagraph.join('\n'),
+            key: `para-${i}`
+          });
+          currentParagraph = [];
+        }
+        // Add subheader
+        result.push({
+          type: 'subheader',
+          content: line.replace(/^### /, ''),
+          key: `subheader-${i}`
+        });
+      }
+      // Check for horizontal rules (---)
+      else if (line === '---' || line.startsWith('---')) {
+        // Finish current paragraph if exists
+        if (currentParagraph.length > 0) {
+          result.push({
+            type: 'paragraph', 
+            content: currentParagraph.join('\n'),
+            key: `para-${i}`
+          });
+          currentParagraph = [];
+        }
+        // Add divider
+        result.push({
+          type: 'divider',
+          content: '',
+          key: `divider-${i}`
+        });
+      }
+
+      
       // Check for bold headers (**Header**)
       else if (line.startsWith('**') && line.endsWith('**') && line.includes(':')) {
         // Finish current paragraph if exists
@@ -347,6 +383,31 @@ const FormattedText = ({ content, isDark }: { content: string; isDark: boolean }
             >
               {item.content}
             </Text>
+          );
+        case 'subheader':
+          return (
+            <Text
+              key={item.key}
+              size="lg"
+              fw={600}
+              mb="sm"
+              mt="md"
+              style={{ color: isDark ? '#e2e8f0' : '#334155' }}
+            >
+              {item.content}
+            </Text>
+          );
+        case 'divider':
+          return (
+            <Box
+              key={item.key}
+              my="lg"
+              style={{
+                height: '1px',
+                backgroundColor: isDark ? 'rgba(71, 85, 105, 0.4)' : 'rgba(148, 163, 184, 0.4)',
+                width: '100%'
+              }}
+            />
           );
         case 'boldHeader':
           return (

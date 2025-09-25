@@ -71,7 +71,7 @@ class GeminiClient:
             temperature=0.1,  # Low temperature for factual responses
             top_p=0.8,
             top_k=40,
-            max_output_tokens=2048,
+            max_output_tokens=4000,
             candidate_count=1
         )
         

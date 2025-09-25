@@ -96,6 +96,14 @@ SYNTHESIS APPROACH:
 - Create coherent, practical guidance that goes beyond just repeating documentation
 - Focus on what developers actually need to know to succeed
 
+FORMATTING REQUIREMENTS - FOLLOW EXACTLY:
+- Use ## for main sections only
+- Use ### for subsections only  
+- NEVER use #### (4 hashes) - use ### instead
+- Use --- for section dividers
+- Use ```javascript, ```html, ```css for code blocks
+- Keep response under 3200 tokens while being comprehensive
+
 Based on these ArcGIS JavaScript SDK documentation excerpts:
 
 {context}
