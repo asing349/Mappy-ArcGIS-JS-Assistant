@@ -197,15 +197,15 @@ export default function InteractivePage() {
                   {'{ Mappy }'}
                 </Title>
                 <Text ref={landingTaglineRef} data-flip-id="mappy-tagline" size="xl" c={isDark ? "dimmed" : "gray.6"} ta="center" maw={600} style={{ fontSize: '1.4rem', lineHeight: 1.6, fontWeight: 400 }}>
-                  Your intelligent companion for building amazing things.
+                  RAG implementation on Esri ArcGIS Maps JS SDK Documentation.
                 </Text>
                 <Button ref={landingButtonRef} onClick={handleStartChat} size="xl" radius="xl" variant="gradient" gradient={{ from: '#3b82f6', to: '#06b6d4', deg: 135 }} style={{ padding: '16px 48px', fontSize: '1.2rem', fontWeight: 600, boxShadow: '0 8px 32px rgba(59, 130, 246, 0.4)' }}>
                   Start Conversation
                 </Button>
                 <Box ref={landingLinksRef} data-flip-id="mappy-links">
                   <Group gap="xs" mt="md">
-                      <Anchor href="https://github.com" target="_blank" aria-label="GitHub"><ActionIcon variant="subtle" color="gray"><IconBrandGithub /></ActionIcon></Anchor>
-                      <Anchor href="https://linkedin.com" target="_blank" aria-label="LinkedIn"><ActionIcon variant="subtle" color="gray"><IconBrandLinkedin /></ActionIcon></Anchor>
+                      <Anchor href="https://github.com/asing349" target="_blank" aria-label="GitHub"><ActionIcon variant="subtle" color="gray"><IconBrandGithub /></ActionIcon></Anchor>
+                      <Anchor href="https://linkedin.com/in/itsmeajit" target="_blank" aria-label="LinkedIn"><ActionIcon variant="subtle" color="gray"><IconBrandLinkedin /></ActionIcon></Anchor>
                   </Group>
                 </Box>
               </Stack>

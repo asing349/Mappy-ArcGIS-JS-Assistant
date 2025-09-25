@@ -31,19 +31,19 @@ const InfoPanel = React.forwardRef<HTMLDivElement, InfoPanelProps>(
             {'{ Mappy }'}
           </Title>
           <Text ref={taglineRef} data-flip-id="mappy-tagline" c="dimmed" size="sm" mt={4}>
-            Your intelligent companion...
+            Esri ArcGIS Maps JS SDK...
           </Text>
         </Box>
 
         <Box ref={linksRef} data-flip-id="mappy-links">
           <Divider mb="md" />
           <Group justify="space-between" align="center">
-            <Text size="sm" c="dimmed">By Ajit Singh</Text>
+            <Text size="sm" c="dimmed">Developed By Ajit Singh</Text>
             <Group gap="xs">
-              <Anchor href="https://github.com" target="_blank" aria-label="GitHub">
+              <Anchor href="https://github.com/asing349" target="_blank" aria-label="GitHub">
                 <ActionIcon variant="subtle" color="gray"><IconBrandGithub /></ActionIcon>
               </Anchor>
-              <Anchor href="https://linkedin.com" target="_blank" aria-label="LinkedIn">
+              <Anchor href="https://linkedin.com/in/itsmeajit" target="_blank" aria-label="LinkedIn">
                 <ActionIcon variant="subtle" color="gray"><IconBrandLinkedin /></ActionIcon>
               </Anchor>
             </Group>
