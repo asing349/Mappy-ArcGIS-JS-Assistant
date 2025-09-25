@@ -90,7 +90,6 @@ const CodeBlock = ({
         overflow: 'hidden'
       }}
     >
-      {/* Code header with language and copy button */}
       <Flex
         justify="space-between"
         align="center"
@@ -115,7 +114,6 @@ const CodeBlock = ({
         </Tooltip>
       </Flex>
       
-      {/* Code content */}
       <Box
         p="md"
         style={{
@@ -138,8 +136,8 @@ const parseMessageContent = (text: string, isDark: boolean) => {
   const parts = [];
   let currentIndex = 0;
   
-  // Remove References section entirely (it's redundant with sources dropdown)
-  const cleanedText = text.replace(/## References[\s\S]*$/i, '').trim();
+  // Keep references intact - do NOT remove them
+  const cleanedText = text.trim();
   
   // Split by code blocks first
   const codeBlockRegex = /```(\w+)?\n?([\s\S]*?)```/g;
@@ -284,7 +282,7 @@ const FormattedText = ({ content, isDark }: { content: string; isDark: boolean }
         });
         i = j - 1; // Skip processed lines
       }
-      // Check for numbered lists
+      // Check for numbered lists (including reference links)
       else if (/^\d+\./.test(line)) {
         // Finish current paragraph if exists
         if (currentParagraph.length > 0) {
@@ -384,19 +382,59 @@ const FormattedText = ({ content, isDark }: { content: string; isDark: boolean }
         case 'list':
           return (
             <Box key={item.key} component="ol" mb="md" style={{ paddingLeft: '20px' }}>
-              {(item.content as string[]).map((listItem, index) => (
-                <Box
-                  key={`${item.key}-item-${index}`}
-                  component="li"
-                  mb="xs"
-                  style={{
-                    color: isDark ? '#f1f5f9' : '#1e293b',
-                    lineHeight: 1.6
-                  }}
-                >
-                  {formatInlineText(listItem.replace(/^\d+\.\s*/, ''))}
-                </Box>
-              ))}
+              {(item.content as string[]).map((listItem, index) => {
+                // Check if this is a reference with [title](url) format
+                const linkMatch = listItem.match(/\d+\.\s*\[([^\]]+)\]\(([^)]+)\)/);
+                
+                if (linkMatch) {
+                  const [, title, url] = linkMatch;
+                  return (
+                    <Box
+                      key={`${item.key}-item-${index}`}
+                      component="li"
+                      mb="xs"
+                      style={{
+                        color: isDark ? '#f1f5f9' : '#1e293b',
+                        lineHeight: 1.6
+                      }}
+                    >
+                      <Text
+                        component="a"
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          color: isDark ? '#60a5fa' : '#2563eb',
+                          textDecoration: 'none'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.textDecoration = 'underline';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.textDecoration = 'none';
+                        }}
+                      >
+                        {title}
+                      </Text>
+                    </Box>
+                  );
+                }
+                
+                // Regular numbered list item
+                return (
+                  <Box
+                    key={`${item.key}-item-${index}`}
+                    component="li"
+                    mb="xs"
+                    style={{
+                      color: isDark ? '#f1f5f9' : '#1e293b',
+                      lineHeight: 1.6
+                    }}
+                  >
+                    {formatInlineText(listItem.replace(/^\d+\.\s*/, ''))}
+                  </Box>
+                );
+              })}
             </Box>
           );
         case 'paragraph':
@@ -676,7 +714,6 @@ const ChatPanel = React.forwardRef<HTMLDivElement, ChatPanelProps>(({ onClose },
                   border: `1px solid ${isDark ? 'rgba(59, 130, 246, 0.1)' : 'rgba(37, 99, 235, 0.1)'}`
                 }}
               >
-                {/* Direct link display - show URL or title */}
                 <Group gap="xs" mb="xs" wrap="nowrap">
                   <Text
                     component="a"
@@ -691,7 +728,7 @@ const ChatPanel = React.forwardRef<HTMLDivElement, ChatPanelProps>(({ onClose },
                       flex: 1
                     }}
                   >
-                    {source.url || (source.title !== 'No title' ? source.title : 'Source link')}
+                    {source.title !== 'No title' ? source.title : source.url || 'Source link'}
                   </Text>
                   {source.document_type && (
                     <Badge size="xs" color="blue" variant="light" style={{ flexShrink: 0 }}>

@@ -111,15 +111,18 @@ class ContextAssembler:
         """Convert search results to ContextChunk objects"""
         chunks = []
         
-        for result in results:
+        for i, result in enumerate(results):
+            # Extract metadata properly from Qdrant search results
+            metadata = result.get('metadata', {})
+            
             chunks.append(ContextChunk(
-                content=result['content'],
-                doc_type=result.get('doc_type', 'unknown'),
-                chunk_type=result.get('chunk_type', 'unknown'),
-                title=result.get('title', 'No title'),
-                url=result.get('url', ''),
+                content=result.get('content', ''),
+                doc_type=metadata.get('doc_type', 'unknown'),
+                chunk_type=metadata.get('chunk_type', 'unknown'),
+                title=metadata.get('title', 'No title'),
+                url=metadata.get('url', ''),
                 relevance_score=result.get('similarity_score', 0.0),
-                rank=result.get('rank', 999)
+                rank=i + 1  # Use position as rank
             ))
         
         return chunks
@@ -166,6 +169,10 @@ class ContextAssembler:
             if any(term in query_lower for term in ["how to", "implement", "code", "example"]):
                 if chunk.chunk_type in ["code_example", "complete_example"]:
                     chunk.relevance_score *= 1.3
+        
+        # Clamp all relevance scores to [0.0, 1.0] after applying boosts
+        for chunk in chunks:
+            chunk.relevance_score = max(0.0, min(1.0, chunk.relevance_score))
         
         return chunks
     
@@ -310,75 +317,3 @@ class ContextAssembler:
         context_lower = context.lower()
         
         return sum(1 for term in query_terms if term in context_lower)
-
-def main():
-    """Test the context assembler"""
-    
-    # Setup logging
-    logging.basicConfig(level=logging.INFO)
-    
-    print("Testing Context Assembler...")
-    
-    # Mock search results for testing
-    mock_results = {
-        "search_time": 0.1,
-        "total_results": 3,
-        "results": [
-            {
-                "content": "PointBarrier represents a point barrier used in routing analysis. It prevents travel through specific point locations.",
-                "doc_type": "api_reference",
-                "chunk_type": "class_overview",
-                "title": "PointBarrier Class",
-                "url": "https://developers.arcgis.com/javascript/latest/api-reference/esri-rest-support-PointBarrier.html",
-                "similarity_score": 0.95,
-                "rank": 1
-            },
-            {
-                "content": "// Create a point barrier\nconst pointBarrier = new PointBarrier({\n  geometry: new Point({x: -117.195, y: 34.057})\n});",
-                "doc_type": "api_reference", 
-                "chunk_type": "code_example",
-                "title": "PointBarrier Code Example",
-                "url": "https://developers.arcgis.com/javascript/latest/api-reference/esri-rest-support-PointBarrier.html",
-                "similarity_score": 0.87,
-                "rank": 2
-            },
-            {
-                "content": "This tutorial shows how to add routing barriers to prevent travel through certain areas.",
-                "doc_type": "guide",
-                "chunk_type": "tutorial_step", 
-                "title": "Adding Routing Barriers",
-                "url": "https://developers.arcgis.com/javascript/latest/tutorials/routing-barriers/",
-                "similarity_score": 0.82,
-                "rank": 3
-            }
-        ]
-    }
-    
-    # Test context assembly
-    assembler = ContextAssembler()
-    
-    print("\n1. Testing balanced context assembly...")
-    context = assembler.assemble_context(mock_results, "PointBarrier routing", "balanced")
-    
-    print(f"   Total chunks: {context.total_chunks}")
-    print(f"   Doc types: {context.doc_types_used}")
-    print(f"   Context length: {len(context.context_text)} chars")
-    print(f"   Truncated: {context.truncated}")
-    
-    print("\n2. Testing API-focused context...")
-    api_context = assembler.assemble_context(mock_results, "PointBarrier API", "api")
-    print(f"   API context length: {len(api_context.context_text)} chars")
-    
-    print("\n3. Sample context output:")
-    print("=" * 60)
-    print(context.context_text[:500] + "...")
-    print("=" * 60)
-    
-    print("\n4. Context statistics:")
-    for key, value in context.context_stats.items():
-        print(f"   {key}: {value}")
-    
-    print("\nContext Assembler testing complete!")
-
-if __name__ == "__main__":
-    main()

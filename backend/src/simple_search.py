@@ -1,210 +1,271 @@
 """
-Simple Search Engine for Mappy ArcGIS Assistant
-Clean, working implementation with proper error handling
+Production search service for Mappy ArcGIS Assistant using Qdrant Cloud
 """
 
-import json
-import chromadb
-from pathlib import Path
-from typing import List, Dict, Any, Optional
+import os
 import logging
 import time
-import requests
+from typing import List, Dict, Any, Optional
+from dotenv import load_dotenv
+
+# Qdrant imports
+from qdrant_client import QdrantClient
+from qdrant_client.models import Filter, FieldCondition, MatchValue
+
+# Vertex AI imports
+from vertexai.language_models import TextEmbeddingModel
+import vertexai
+
+# Load environment variables
+load_dotenv()
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 class SimpleMappySearch:
-    """Simple ChromaDB search for ArcGIS documentation"""
+    """Production Qdrant search service using Vertex AI embeddings"""
     
     def __init__(self):
-        """Initialize with fixed paths and proper error handling"""
+        """Initialize search service with Qdrant Cloud and Vertex AI"""
         
-        # Fixed path to your working database
-        self.db_path = Path("data/vector_store")
+        # Initialize Vertex AI
+        self._initialize_vertex_ai()
+        
+        # Load embedding model
+        self.embedding_model = TextEmbeddingModel.from_pretrained("text-embedding-004")
+        
+        # Qdrant configuration
+        self.qdrant_url = os.getenv("QDRANT_URL", "https://7c22af82-0689-41e8-86d2-705b20cac60a.us-west-1-0.aws.cloud.qdrant.io")
+        self.api_key = os.getenv("QDRANT_API_KEY")
         self.collection_name = "arcgis_docs"
         
-        # Validate database exists
-        if not self.db_path.exists():
-            raise FileNotFoundError(f"ChromaDB not found at: {self.db_path}")
+        if not self.api_key:
+            raise ValueError("QDRANT_API_KEY not found in environment variables")
         
-        # Initialize ChromaDB client
+        # Initialize Qdrant client
+        self.client = QdrantClient(
+            url=self.qdrant_url,
+            api_key=self.api_key,
+        )
+        
+        # Test connection and get collection info
         try:
-            self.client = chromadb.PersistentClient(path=str(self.db_path))
-            self.collection = self.client.get_collection(self.collection_name)
-            doc_count = self.collection.count()
-            logger.info(f"Connected to ChromaDB: {doc_count} documents")
+            collection_info = self.client.get_collection(self.collection_name)
+            vector_count = collection_info.vectors_count or 0
+            logger.info(f"Connected to Qdrant: {vector_count} documents")
         except Exception as e:
-            logger.error(f"Failed to connect to ChromaDB: {e}")
+            logger.error(f"Failed to connect to Qdrant: {e}")
             raise
     
-    def _generate_embedding(self, text: str) -> List[float]:
-        """Generate embedding using Ollama (matches your database embeddings)"""
+    def _initialize_vertex_ai(self):
+        """Initialize Vertex AI with project credentials"""
+        project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
+        credentials_json = os.getenv("GOOGLE_APPLICATION_CREDENTIALS_JSON")
+        credentials_file = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+        
+        if not project_id:
+            raise ValueError("GOOGLE_CLOUD_PROJECT not found in environment variables")
+        
+        # Handle JSON credentials string for deployment
+        if credentials_json:
+            import json
+            import tempfile
+            try:
+                credentials_dict = json.loads(credentials_json)
+                with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as f:
+                    json.dump(credentials_dict, f)
+                    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = f.name
+                logger.info("Using JSON credentials from environment variable")
+            except json.JSONDecodeError as e:
+                logger.error(f"Invalid JSON in GOOGLE_APPLICATION_CREDENTIALS_JSON: {e}")
+                raise
+        elif credentials_file:
+            # If credentials file path is set, make sure it exists
+            if not os.path.exists(credentials_file):
+                # Try relative to project root
+                relative_path = os.path.join(os.getcwd(), credentials_file)
+                if os.path.exists(relative_path):
+                    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = relative_path
+                    logger.info(f"Using credentials file: {relative_path}")
+                else:
+                    logger.error(f"Credentials file not found: {credentials_file}")
+                    raise FileNotFoundError(f"Credentials file not found: {credentials_file}")
+            else:
+                logger.info(f"Using credentials file: {credentials_file}")
+        else:
+            logger.error("No Google Cloud credentials found. Set either GOOGLE_APPLICATION_CREDENTIALS_JSON or GOOGLE_APPLICATION_CREDENTIALS")
+            raise ValueError("No Google Cloud credentials found")
+        
         try:
-            response = requests.post(
-                "http://localhost:11434/api/embeddings",
-                json={
-                    "model": "nomic-embed-text",  # Same model used for your database
-                    "prompt": text
-                },
-                timeout=30
-            )
-            response.raise_for_status()
-            return response.json()["embedding"]
+            vertexai.init(project=project_id, location="us-central1")
+            logger.info(f"Initialized Vertex AI for project: {project_id}")
         except Exception as e:
-            logger.error(f"Embedding generation failed: {e}")
+            logger.error(f"Failed to initialize Vertex AI: {e}")
+            raise
+    
+    def _get_query_embedding(self, query: str) -> List[float]:
+        """Generate embedding for search query using Vertex AI"""
+        try:
+            # Generate embedding using same model as documents
+            embeddings = self.embedding_model.get_embeddings([query])
+            embedding_vector = embeddings[0].values
+            
+            logger.debug(f"Generated query embedding: {len(embedding_vector)} dimensions")
+            return embedding_vector
+            
+        except Exception as e:
+            logger.error(f"Failed to generate query embedding: {e}")
             raise
     
     def search(self, 
                query: str, 
-               n_results: int = 10,
-               doc_type: Optional[str] = None) -> Dict[str, Any]:
+               limit: int = 10,
+               n_results: Optional[int] = None,  # Backward compatibility
+               score_threshold: float = 0.0,
+               doc_type_filter: Optional[str] = None) -> Dict[str, Any]:
         """
-        Search the ArcGIS documentation
+        Search for similar documents using Qdrant
         
         Args:
             query: Search query text
-            n_results: Number of results to return
-            doc_type: Filter by document type ('api_reference', 'sample', 'guide')
-            
+            limit: Maximum number of results
+            n_results: Backward compatibility alias for limit
+            score_threshold: Minimum similarity score
+            doc_type_filter: Filter by document type (e.g., 'sample', 'api_reference')
+        
         Returns:
-            Dictionary with search results and metadata
+            Dictionary with results and metadata (same format as original ChromaDB version)
         """
+        # Handle backward compatibility
+        if n_results is not None:
+            limit = n_results
+            
         start_time = time.time()
         
         try:
             # Generate query embedding
-            query_embedding = self._generate_embedding(query)
+            query_embedding = self._get_query_embedding(query)
             
-            # Build filter for document type
-            where_filter = {}
-            if doc_type:
-                where_filter["doc_type"] = doc_type
+            # Build filter if specified
+            query_filter = None
+            if doc_type_filter:
+                query_filter = Filter(
+                    must=[
+                        FieldCondition(
+                            key="doc_type",
+                            match=MatchValue(value=doc_type_filter)
+                        )
+                    ]
+                )
             
-            # Search ChromaDB
-            results = self.collection.query(
-                query_embeddings=[query_embedding],
-                n_results=n_results,
-                where=where_filter if where_filter else None,
-                include=['documents', 'metadatas', 'distances']
+            # Perform search
+            search_results = self.client.query_points(
+                collection_name=self.collection_name,
+                query=query_embedding,
+                query_filter=query_filter,
+                limit=limit,
+                score_threshold=score_threshold,
+                with_payload=True,
+                with_vectors=False
             )
             
+            # Format results to match original ChromaDB format
+            results = []
+            for result in search_results.points:
+                # Extract metadata
+                payload = result.payload or {}
+                
+                # Calculate similarity score (Qdrant returns distance, convert to similarity)
+                similarity_score = max(0.0, min(1.0, result.score))
+                
+                formatted_result = {
+                    'id': str(result.id),
+                    'content': payload.get('content', ''),
+                    'similarity_score': similarity_score,
+                    'metadata': {
+                        'title': payload.get('metadata_title', 'No title'),
+                        'url': payload.get('metadata_url', ''),
+                        'doc_type': payload.get('doc_type', ''),
+                        'chunk_type': payload.get('chunk_type', ''),
+                        'parent_doc_id': payload.get('parent_doc_id', ''),
+                        'token_count': payload.get('token_count', 0),
+                        'example_count': payload.get('metadata_example_count', 0),
+                    }
+                }
+                results.append(formatted_result)
+            
             search_time = time.time() - start_time
+            logger.info(f"Search completed: {len(results)} results in {search_time:.3f}s")
             
-            # Format results
-            formatted_results = self._format_results(results, search_time)
-            
-            logger.info(f"Search completed: {len(results['documents'][0])} results in {search_time:.3f}s")
-            return formatted_results
+            # Return in original ChromaDB format that RAG engine expects
+            return {
+                'results': results,
+                'total_results': len(results),
+                'search_time': search_time,
+                'query': query,
+                'limit': limit
+            }
             
         except Exception as e:
             logger.error(f"Search failed: {e}")
-            return {
-                "search_time": time.time() - start_time,
-                "total_results": 0,
-                "results": [],
-                "error": str(e)
-            }
+            raise
     
-    def _format_results(self, raw_results: Dict[str, Any], search_time: float) -> Dict[str, Any]:
-        """Format raw ChromaDB results into standardized structure"""
-        
-        if not raw_results['documents'][0]:
-            return {
-                "search_time": search_time,
-                "total_results": 0,
-                "results": []
-            }
-        
-        formatted = []
-        
-        for i, (doc, metadata, distance) in enumerate(zip(
-            raw_results['documents'][0],
-            raw_results['metadatas'][0], 
-            raw_results['distances'][0]
-        )):
-            # Calculate similarity score (higher is better)
-            similarity = max(0.0, 1.0 - (distance / 2.0))  # Normalize distance to similarity
-            
-            formatted.append({
-                "rank": i + 1,
-                "content": doc,
-                "title": metadata.get('title', 'No title'),
-                "url": metadata.get('url', metadata.get('parent_doc_id', 'No URL')),
-                "doc_type": metadata.get('doc_type', 'unknown'),
-                "similarity_score": similarity,
-                "metadata": metadata
-            })
-        
-        return {
-            "search_time": search_time,
-            "total_results": len(formatted),
-            "results": formatted
-        }
-    
-    def search_by_type(self, query: str, doc_type: str, n_results: int = 5) -> Dict[str, Any]:
-        """Search within specific document types"""
-        return self.search(query, n_results, doc_type)
-    
-    def get_random_docs(self, n_docs: int = 5) -> Dict[str, Any]:
-        """Get random documents for testing"""
+    def get_collection_stats(self) -> Dict[str, Any]:
+        """Get collection statistics"""
         try:
-            # Use a generic embedding to get diverse results
-            random_embedding = self._generate_embedding("documentation")
-            
-            results = self.collection.query(
-                query_embeddings=[random_embedding],
-                n_results=n_docs,
-                include=['documents', 'metadatas']
-            )
-            
-            return self._format_results(results, 0.0)
-            
+            collection_info = self.client.get_collection(self.collection_name)
+            return {
+                'name': self.collection_name,
+                'vectors_count': collection_info.vectors_count,
+                'indexed_vectors_count': collection_info.indexed_vectors_count,
+                'points_count': collection_info.points_count,
+                'status': collection_info.status,
+            }
         except Exception as e:
-            logger.error(f"Failed to get random docs: {e}")
-            return {"total_results": 0, "results": []}
-    
-    def test_connection(self) -> bool:
-        """Test if the search engine is working"""
-        try:
-            test_results = self.search("test", n_results=1)
-            return test_results["total_results"] > 0
-        except:
-            return False
+            logger.error(f"Failed to get collection stats: {e}")
+            return {}
 
-def main():
-    """Test the search engine"""
-    
-    print("Testing SimpleMappySearch...")
-    
+
+# Test function
+def test_search():
+    """Test search functionality"""
     try:
-        # Initialize search engine
         search = SimpleMappySearch()
         
-        # Test basic search
-        print("\n1. Basic search test:")
-        results = search.search("How to create a map", n_results=3)
-        print(f"   Found {results['total_results']} results in {results['search_time']:.3f}s")
+        test_queries = [
+            "how to create a map with ArcGIS",
+            "elevation layer 3D",
+            "JavaScript SDK sample code",
+            "add markers to map",
+            "popup configuration"
+        ]
         
-        if results['results']:
-            top_result = results['results'][0]
-            print(f"   Top result: {top_result['title']}")
-            print(f"   Score: {top_result['similarity_score']:.3f}")
-            print(f"   Content preview: {top_result['content'][:100]}...")
+        print("Testing search with Qdrant Cloud...")
+        print("=" * 60)
         
-        # Test filtered search
-        print("\n2. API reference search:")
-        api_results = search.search_by_type("PointBarrier", "api_reference", n_results=2)
-        print(f"   Found {api_results['total_results']} API docs in {api_results['search_time']:.3f}s")
-        
-        # Test connection
-        print(f"\n3. Connection test: {'PASS' if search.test_connection() else 'FAIL'}")
-        
-        print("\nSimpleMappySearch is working correctly!")
-        
+        for query in test_queries:
+            print(f"Query: '{query}'")
+            print("-" * 40)
+            
+            search_response = search.search(query, limit=3)
+            results = search_response['results']
+            
+            for i, result in enumerate(results, 1):
+                print(f"Rank {i}: {result['metadata']['title']}")
+                print(f"Score: {result['similarity_score']:.3f}")
+                print(f"Type: {result['metadata']['doc_type']}")
+                print(f"Content: {result['content'][:100]}...")
+                print()
+            
+            print(f"Search time: {search_response['search_time']:.3f}s")
+            print("=" * 40)
+            print()
+    
     except Exception as e:
         print(f"Test failed: {e}")
 
+
 if __name__ == "__main__":
-    main()
+    test_search()

@@ -1,22 +1,23 @@
 """
 RAG Engine - Simplified RAG Orchestration for Mappy ArcGIS Assistant
-Uses your working SimpleMappySearch directly for embedding retrieval
+Fixed import for SimpleMappySearch
 """
 
 import logging
 import time
-import sys
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
-
-# Add parent directory to path to import from src/
-sys.path.append(str(Path(__file__).parent.parent))
+import sys
 
 logger = logging.getLogger(__name__)
 
-# Import your working search engine from src/
+# Add src directory to path and import SimpleMappySearch
 try:
+    # Add src to path from any location
+    src_path = Path(__file__).parent.parent  # Go up from rag/ to src/
+    sys.path.insert(0, str(src_path))
+    
     from simple_search import SimpleMappySearch
     logger.info("Imported SimpleMappySearch successfully")
 except ImportError as e:
@@ -223,7 +224,7 @@ class MappyRAGEngine:
         
         status = {}
         
-        # Test search engine (ChromaDB + Ollama)
+        # Test search engine (ChromaDB + Vertex AI)
         try:
             test_search = self.search_engine.search("test query", n_results=1)
             status["search_engine"] = "working" if test_search.get("results") else "no_results"
@@ -241,47 +242,3 @@ class MappyRAGEngine:
         status["prompt_builder"] = "initialized"
         
         return status
-
-def main():
-    """Test the simplified RAG engine"""
-    
-    # Setup logging
-    logging.basicConfig(level=logging.INFO)
-    
-    print("Testing Simplified Mappy RAG Engine...")
-    
-    try:
-        # Initialize RAG engine
-        rag_engine = MappyRAGEngine()
-        
-        # Check system status
-        print("\n1. Checking system status...")
-        status = rag_engine.get_system_status()
-        for component, state in status.items():
-            print(f"   {component}: {state}")
-        
-        # Test complete pipeline
-        print("\n2. Testing complete RAG pipeline...")
-        rag_engine.test_rag_pipeline()
-        
-        # Interactive example
-        print("\n3. Interactive example:")
-        test_query = "What is PointBarrier used for in routing?"
-        response = rag_engine.query(test_query)
-        
-        if response.success:
-            print(f"   Query: {test_query}")
-            print(f"   Query Type: {response.query_type}")
-            print(f"   Sources Found: {len(response.sources)}")
-            print(f"   Performance: {response.performance_metrics['total_time']:.2f}s")
-            print(f"   Answer Preview: {response.answer[:300]}...")
-        else:
-            print(f"   Failed: {response.error_message}")
-        
-        print("\n✅ Simplified RAG Engine testing complete!")
-        
-    except Exception as e:
-        print(f"❌ RAG Engine test failed: {e}")
-
-if __name__ == "__main__":
-    main()

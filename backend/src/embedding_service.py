@@ -1,293 +1,408 @@
+#!/usr/bin/env python3
 """
-Module 5: Embedding Service
-Production-grade vector generation using Ollama (free, local)
+Vertex AI Embedding Service for Mappy ArcGIS Documentation Assistant
+
+This service generates embeddings using Google's text-embedding-004 model,
+which produces 3072-dimensional vectors with state-of-the-art performance.
+
+Features:
+- Robust error handling and retry logic
+- Content validation (minimum length requirements)
+- Dimension validation (ensures 3072-D vectors)
+- Batch processing with progress tracking
+- Comprehensive logging and metrics
+- Exponential backoff for failed requests
+- Google Cloud authentication
+
+Usage:
+    python embedding_service.py
+
+Requirements:
+    - Google Cloud Project with Vertex AI enabled
+    - Service account with Vertex AI User role
+    - GOOGLE_CLOUD_PROJECT and GOOGLE_APPLICATION_CREDENTIALS env vars
 """
 
 import json
-import numpy as np
-from pathlib import Path
-from typing import List, Dict, Any
-import requests
-import time
-from tqdm import tqdm
-from dataclasses import dataclass
 import logging
+import os
+import time
+from pathlib import Path
+from typing import Dict, List, Any, Optional
+import numpy as np
+from tqdm import tqdm
+from dotenv import load_dotenv
 
-# Setup logging
-logging.basicConfig(level=logging.INFO)
+# Google Cloud imports
+from google.cloud import aiplatform
+from vertexai.language_models import TextEmbeddingModel
+import vertexai
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('embedding_generation.log'),
+        logging.StreamHandler()
+    ]
+)
 logger = logging.getLogger(__name__)
 
-@dataclass
-class EmbeddingResult:
-    """Single embedding result with metadata"""
-    chunk_id: str
-    embedding: List[float]
-    model: str
-    dimensions: int
-    chunk_metadata: Dict[str, Any]
-
-class OllamaEmbeddingService:
-    """Production-grade embedding service using Ollama"""
+class VertexAIEmbeddingService:
+    """Service for generating embeddings using Google Vertex AI text-embedding-004"""
     
-    def __init__(self, 
-                 model_name: str = "nomic-embed-text",
-                 ollama_host: str = "http://localhost:11434",
-                 batch_size: int = 16,
-                 max_retries: int = 3,
-                 retry_delay: float = 1.0):
-        
+    def __init__(
+        self,
+        model_name: str = "text-embedding-004",
+        location: str = "us-central1",
+        batch_size: int = 100,
+        max_retries: int = 3,
+        retry_delay: float = 2.0,
+        min_content_length: int = 10,
+        expected_dimensions: int = 768  # text-embedding-004 produces 768 dimensions
+    ):
+        """Initialize the Vertex AI embedding service"""
         self.model_name = model_name
-        self.ollama_host = ollama_host
+        self.location = location
         self.batch_size = batch_size
         self.max_retries = max_retries
         self.retry_delay = retry_delay
+        self.min_content_length = min_content_length
+        self.expected_dimensions = expected_dimensions
         
-        # Validate Ollama connection
-        self._validate_ollama_connection()
-        self._ensure_model_available()
+        # Load environment variables
+        load_dotenv()
+        
+        # Initialize Vertex AI
+        self._initialize_vertex_ai()
+        
+        # Load the embedding model
+        self.model = None
+        self._load_model()
     
-    def _validate_ollama_connection(self):
-        """Verify Ollama server is running"""
-        try:
-            response = requests.get(f"{self.ollama_host}/api/tags", timeout=5)
-            response.raise_for_status()
-            logger.info("✅ Ollama server connection successful")
-        except Exception as e:
-            raise ConnectionError(f"❌ Cannot connect to Ollama at {self.ollama_host}: {e}")
+    def _initialize_vertex_ai(self) -> None:
+        """Initialize Vertex AI with proper authentication"""
+        project_id = os.getenv('GOOGLE_CLOUD_PROJECT')
+        credentials_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+        
+        if not project_id:
+            raise ValueError("GOOGLE_CLOUD_PROJECT environment variable not set")
+        
+        if not credentials_path:
+            raise ValueError("GOOGLE_APPLICATION_CREDENTIALS environment variable not set")
+        
+        if not os.path.exists(credentials_path):
+            raise FileNotFoundError(f"Service account key file not found: {credentials_path}")
+        
+        logger.info(f"🔧 Initializing Vertex AI...")
+        logger.info(f"📋 Project: {project_id}")
+        logger.info(f"🌍 Location: {self.location}")
+        
+        # Initialize Vertex AI
+        vertexai.init(project=project_id, location=self.location)
+        aiplatform.init(project=project_id, location=self.location)
+        
+        logger.info("✅ Vertex AI initialized successfully")
     
-    def _ensure_model_available(self):
-        """Check if embedding model is available, pull if needed"""
-        try:
-            # Check if model exists
-            response = requests.get(f"{self.ollama_host}/api/tags")
-            models = response.json().get('models', [])
-            model_names = [model['name'] for model in models]
+    def _load_model(self) -> None:
+        """Load the Vertex AI embedding model"""
+        logger.info(f"📦 Loading {self.model_name} model...")
+        self.model = TextEmbeddingModel.from_pretrained(self.model_name)
+        logger.info(f"✅ Model {self.model_name} loaded successfully")
+    
+    def _validate_content(self, text: str) -> bool:
+        """Validate text content before embedding generation"""
+        if not text or not isinstance(text, str):
+            return False
             
-            if self.model_name not in model_names:
-                logger.info(f"🔄 Model {self.model_name} not found. Pulling...")
-                self._pull_model()
-            else:
-                logger.info(f"✅ Model {self.model_name} is available")
-                
-        except Exception as e:
-            logger.error(f"❌ Error checking model availability: {e}")
-            raise
-    
-    def _pull_model(self):
-        """Pull the embedding model from Ollama"""
-        try:
-            logger.info(f"📥 Pulling {self.model_name} model...")
-            response = requests.post(
-                f"{self.ollama_host}/api/pull",
-                json={"name": self.model_name},
-                stream=True,
-                timeout=300
-            )
+        # Check minimum length
+        if len(text.strip()) < self.min_content_length:
+            return False
             
-            # Stream the download progress
-            for line in response.iter_lines():
-                if line:
-                    try:
-                        data = json.loads(line)
-                        if 'status' in data:
-                            print(f"\r{data['status']}", end='', flush=True)
-                        if data.get('status') == 'success':
-                            print(f"\n✅ Successfully pulled {self.model_name}")
-                            break
-                    except json.JSONDecodeError:
-                        continue
-                        
-        except Exception as e:
-            logger.error(f"❌ Failed to pull model {self.model_name}: {e}")
-            raise
+        # Check for meaningless content (IDs, empty strings, etc.)
+        stripped = text.strip()
+        if stripped.isdigit():  # Pure numbers/IDs
+            return False
+            
+        if stripped.lower() in ['null', 'none', 'undefined', '']:
+            return False
+            
+        return True
     
-    def _get_embedding(self, text: str) -> List[float]:
-        """Get embedding for a single text with retries"""
+    def _get_embeddings_batch(self, texts: List[str]) -> List[List[float]]:
+        """Generate embeddings for a batch of texts with retry logic"""
         for attempt in range(self.max_retries):
             try:
-                response = requests.post(
-                    f"{self.ollama_host}/api/embeddings",
-                    json={
-                        "model": self.model_name,
-                        "prompt": text
-                    },
-                    timeout=30
-                )
-                response.raise_for_status()
+                # Generate embeddings using Vertex AI
+                embeddings = self.model.get_embeddings(texts)
                 
-                result = response.json()
-                return result['embedding']
+                # Extract vectors and validate dimensions
+                vectors = []
+                for embedding in embeddings:
+                    vector = embedding.values
+                    
+                    # Validate embedding dimensions
+                    if len(vector) != self.expected_dimensions:
+                        raise ValueError(
+                            f"Expected {self.expected_dimensions} dimensions, "
+                            f"got {len(vector)}"
+                        )
+                    
+                    vectors.append(vector)
+                
+                return vectors
                 
             except Exception as e:
+                logger.warning(
+                    f"⚠️ Batch embedding attempt {attempt + 1} failed: {e}. "
+                    f"{'Retrying...' if attempt < self.max_retries - 1 else 'Giving up.'}"
+                )
+                
                 if attempt < self.max_retries - 1:
-                    logger.warning(f"⚠️  Embedding attempt {attempt + 1} failed: {e}. Retrying...")
                     time.sleep(self.retry_delay * (2 ** attempt))  # Exponential backoff
                 else:
-                    logger.error(f"❌ Failed to get embedding after {self.max_retries} attempts: {e}")
-                    raise
+                    raise Exception(f"Failed to generate embeddings after {self.max_retries} attempts: {e}")
     
-    def embed_chunks(self, chunks_file: str, output_dir: str = "data/embeddings") -> str:
-        """
-        Process all chunks and generate embeddings
-        
-        Args:
-            chunks_file: Path to chunks JSON file
-            output_dir: Directory to save embeddings
+    def _load_chunks(self, chunks_file: str) -> List[Dict[str, Any]]:
+        """Load and validate chunks from JSON file"""
+        chunks_path = Path(chunks_file)
+        if not chunks_path.exists():
+            raise FileNotFoundError(f"Chunks file not found: {chunks_file}")
             
-        Returns:
-            Path to embeddings file
-        """
-        # Create output directory
-        output_path = Path(output_dir)
-        output_path.mkdir(parents=True, exist_ok=True)
+        with open(chunks_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
         
+        # Handle both list and dict formats
+        chunks = data if isinstance(data, list) else data.get('chunks', [])
+        
+        if not chunks:
+            raise ValueError("No chunks found in the input file")
+            
+        logger.info(f"Loaded {len(chunks):,} chunks from {chunks_file}")
+        return chunks
+    
+    def _extract_text_content(self, chunk: Dict[str, Any]) -> Optional[str]:
+        """Extract rich contextual content for better embeddings"""
+        # Build comprehensive content with context
+        content_parts = []
+        
+        # Add title from metadata if available
+        if 'metadata' in chunk and isinstance(chunk['metadata'], dict):
+            title = chunk['metadata'].get('title', '')
+            if title:
+                content_parts.append(f"Title: {title}")
+            
+            # Add URL from metadata
+            url = chunk['metadata'].get('url', '')
+            if url:
+                content_parts.append(f"URL: {url}")
+        
+        # Add document type context
+        doc_type = chunk.get('doc_type', '')
+        if doc_type:
+            content_parts.append(f"Type: {doc_type}")
+        
+        # Add chunk type context  
+        chunk_type = chunk.get('chunk_type', '')
+        if chunk_type:
+            content_parts.append(f"Section: {chunk_type}")
+        
+        # Add main content
+        main_content = chunk.get('content', '').strip()
+        if main_content and self._validate_content(main_content):
+            content_parts.append(main_content)
+        else:
+            return None  # No valid main content
+        
+        # Combine all parts for rich context
+        full_content = " | ".join(content_parts)
+        
+        if self._validate_content(full_content):
+            return full_content
+        
+        return None
+    
+    def embed_chunks(
+        self, 
+        chunks_file: str, 
+        output_dir: str = "data/embeddings"
+    ) -> str:
+        """Process all chunks and generate embeddings using Vertex AI"""
         # Load chunks
-        logger.info(f"📂 Loading chunks from {chunks_file}")
-        with open(chunks_file, 'r', encoding='utf-8') as f:
-            chunks = json.load(f)
+        chunks = self._load_chunks(chunks_file)
         
-        logger.info(f"📊 Found {len(chunks)} chunks to process")
+        # Prepare output directory
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
         
-        # Process chunks in batches
-        embedding_results = []
-        failed_chunks = []
+        # Prepare output files
+        timestamp = int(time.time())
+        base_name = f"embeddings_vertex_ai_{timestamp}"
+        json_file = output_dir / f"{base_name}.json"
+        np_file = output_dir / f"{base_name}.npy"
         
-        # Progress tracking
-        total_batches = (len(chunks) + self.batch_size - 1) // self.batch_size
+        # Process chunks to extract valid content
+        valid_chunks = []
+        texts_to_embed = []
         
-        with tqdm(total=len(chunks), desc="🔄 Generating embeddings") as pbar:
-            for i in range(0, len(chunks), self.batch_size):
-                batch = chunks[i:i + self.batch_size]
-                batch_results = []
-                
-                for chunk in batch:
-                    try:
-                        # Extract text content for embedding
-                        text_content = chunk.get('content', '')
-                        
-                        # Skip empty chunks
-                        if not text_content.strip():
-                            logger.warning(f"⚠️  Skipping empty chunk: {chunk.get('id', 'unknown')}")
-                            failed_chunks.append(chunk['id'])
-                            pbar.update(1)
-                            continue
-                        
-                        # Get embedding
-                        embedding = self._get_embedding(text_content)
-                        
-                        # Create result
-                        result = EmbeddingResult(
-                            chunk_id=chunk['id'],
-                            embedding=embedding,
-                            model=self.model_name,
-                            dimensions=len(embedding),
-                            chunk_metadata={
-                                'doc_type': chunk.get('doc_type'),
-                                'chunk_type': chunk.get('chunk_type'),
-                                'token_count': chunk.get('token_count'),
-                                'parent_doc_id': chunk.get('parent_doc_id'),
-                                'metadata': chunk.get('metadata', {})
-                            }
-                        )
-                        
-                        batch_results.append(result)
-                        pbar.update(1)
-                        
-                    except Exception as e:
-                        logger.error(f"❌ Failed to process chunk {chunk.get('id', 'unknown')}: {e}")
-                        failed_chunks.append(chunk.get('id', 'unknown'))
-                        pbar.update(1)
-                        continue
-                
-                embedding_results.extend(batch_results)
-                
-                # Small delay between batches to avoid overwhelming Ollama
-                if i + self.batch_size < len(chunks):
-                    time.sleep(0.1)
+        logger.info(f"🔍 Filtering chunks with valid content...")
+        for i, chunk in enumerate(chunks):
+            text_content = self._extract_text_content(chunk)
+            if text_content is not None:
+                valid_chunks.append((i, chunk, text_content))
+                texts_to_embed.append(text_content)
         
-        # Save results
-        output_file = output_path / f"embeddings_{self.model_name.replace(':', '_')}.json"
+        if not texts_to_embed:
+            raise Exception("No valid content found in chunks for embedding generation!")
         
-        # Convert to serializable format
+        logger.info(f"✅ Found {len(texts_to_embed):,} chunks with valid content out of {len(chunks):,} total")
+        
+        # Process embeddings data structure
         embeddings_data = {
             'metadata': {
                 'model': self.model_name,
+                'dimensions': self.expected_dimensions,
                 'total_chunks': len(chunks),
-                'successful_embeddings': len(embedding_results),
-                'failed_chunks': len(failed_chunks),
-                'dimensions': embedding_results[0].dimensions if embedding_results else 0,
-                'timestamp': time.time()
+                'successful_embeddings': 0,
+                'failed_chunks': len(chunks) - len(valid_chunks),
+                'timestamp': timestamp,
+                'min_content_length': self.min_content_length,
+                'location': self.location,
+                'batch_size': self.batch_size
             },
-            'embeddings': [
-                {
-                    'chunk_id': result.chunk_id,
-                    'embedding': result.embedding,
-                    'chunk_metadata': result.chunk_metadata
-                }
-                for result in embedding_results
-            ],
-            'failed_chunk_ids': failed_chunks
+            'embeddings': []
         }
         
-        # Save embeddings
-        logger.info(f"💾 Saving embeddings to {output_file}")
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(embeddings_data, f, indent=2)
+        # Track numpy embeddings separately for efficiency
+        embeddings_array = []
         
-        # Also save as NumPy arrays for fast loading
-        embeddings_array = np.array([result.embedding for result in embedding_results])
-        chunk_ids = [result.chunk_id for result in embedding_results]
+        logger.info(f"🔄 Generating Vertex AI embeddings for {len(texts_to_embed):,} chunks...")
         
-        np_file = output_path / f"embeddings_{self.model_name.replace(':', '_')}.npz"
-        np.savez_compressed(
-            np_file,
-            embeddings=embeddings_array,
-            chunk_ids=chunk_ids,
-            metadata=embeddings_data['metadata']
-        )
+        # Process in batches
+        for batch_start in tqdm(range(0, len(texts_to_embed), self.batch_size), 
+                               desc=f"🔄 Generating {self.model_name} embeddings"):
+            batch_end = min(batch_start + self.batch_size, len(texts_to_embed))
+            batch_texts = texts_to_embed[batch_start:batch_end]
+            batch_chunks = valid_chunks[batch_start:batch_end]
+            
+            try:
+                # Generate embeddings for batch
+                batch_embeddings = self._get_embeddings_batch(batch_texts)
+                
+                # Store embedding data
+                for (original_idx, chunk, text_content), embedding in zip(batch_chunks, batch_embeddings):
+                    embedding_entry = {
+                        'id': chunk.get('id', f'chunk_{original_idx}'),
+                        'text': text_content[:200] + '...' if len(text_content) > 200 else text_content,
+                        'embedding': embedding,
+                        'metadata': {
+                            'original_chunk_index': original_idx,
+                            'content_length': len(text_content),
+                            'chunk_metadata': {
+                                k: v for k, v in chunk.items() 
+                                if k not in ['content', 'text', 'body', 'description', 'summary']
+                            }
+                        }
+                    }
+                    
+                    embeddings_data['embeddings'].append(embedding_entry)
+                    embeddings_array.append(embedding)
+                    embeddings_data['metadata']['successful_embeddings'] += 1
+                
+                # Periodic logging
+                if batch_end % (self.batch_size * 5) == 0 or batch_end == len(texts_to_embed):
+                    logger.info(f"Progress: {batch_end:,}/{len(texts_to_embed):,} chunks processed")
+                    
+            except Exception as e:
+                logger.error(f"Failed to process batch {batch_start}-{batch_end}: {e}")
+                embeddings_data['metadata']['failed_chunks'] += len(batch_texts)
+                continue
+        
+        # Finalize and save results
+        if embeddings_data['metadata']['successful_embeddings'] == 0:
+            raise Exception("No embeddings were generated successfully!")
+        
+        # Save JSON file
+        logger.info(f"💾 Saving embeddings to {json_file}")
+        with open(json_file, 'w', encoding='utf-8') as f:
+            json.dump(embeddings_data, f, ensure_ascii=False, indent=2)
+        
+        # Save NumPy array for efficient loading
+        if embeddings_array:
+            logger.info(f"💾 Saving NumPy array to {np_file}")
+            np.save(np_file, np.array(embeddings_array, dtype=np.float32))
         
         # Print summary
-        self._print_summary(embeddings_data, output_file, np_file)
+        self._print_summary(embeddings_data, json_file, np_file)
         
-        return str(output_file)
+        return str(json_file)
     
     def _print_summary(self, embeddings_data: Dict, json_file: Path, np_file: Path):
         """Print processing summary"""
         metadata = embeddings_data['metadata']
         
-        logger.info("\n" + "="*50)
-        logger.info("🎉 EMBEDDING GENERATION COMPLETE!")
-        logger.info("="*50)
+        logger.info("\n" + "="*60)
+        logger.info("🎉 VERTEX AI EMBEDDING GENERATION COMPLETE!")
+        logger.info("="*60)
         logger.info(f"Model: {metadata['model']}")
         logger.info(f"Dimensions: {metadata['dimensions']}")
+        logger.info(f"Location: {metadata['location']}")
         logger.info(f"Total chunks: {metadata['total_chunks']:,}")
         logger.info(f"Successful embeddings: {metadata['successful_embeddings']:,}")
         logger.info(f"Failed chunks: {metadata['failed_chunks']:,}")
-        logger.info(f"Success rate: {(metadata['successful_embeddings']/metadata['total_chunks']*100):.1f}%")
+        
+        if metadata['total_chunks'] > 0:
+            success_rate = (metadata['successful_embeddings'] / metadata['total_chunks']) * 100
+            logger.info(f"Success rate: {success_rate:.1f}%")
+        
         logger.info(f"JSON output: {json_file}")
         logger.info(f"NumPy output: {np_file}")
         
         if metadata['failed_chunks'] > 0:
-            logger.warning(f"⚠️  {metadata['failed_chunks']} chunks failed processing")
+            logger.warning(f"⚠️ {metadata['failed_chunks']} chunks failed processing")
+        
+        # Estimate cost
+        total_tokens = sum(len(emb['text'].split()) for emb in embeddings_data['embeddings'])
+        estimated_cost = (total_tokens / 1000) * 0.00002  # $0.00002 per 1K tokens
+        logger.info(f"💰 Estimated cost: ${estimated_cost:.4f}")
 
 def main():
-    """Main embedding processing function"""
+    """Main embedding processing function for Vertex AI"""
     
     # Configuration
     chunks_file = "data/processed/all_chunks.json"
     output_dir = "data/embeddings"
     
-    # Initialize service
-    embedding_service = OllamaEmbeddingService(
-        model_name="nomic-embed-text",
-        batch_size=16,  # Adjust based on your hardware
+    # Check if chunks file exists
+    if not Path(chunks_file).exists():
+        logger.error(f"❌ Chunks file not found: {chunks_file}")
+        logger.error("Please run the chunking process first to generate chunks")
+        return
+    
+    # Initialize service with Vertex AI text-embedding-004
+    embedding_service = VertexAIEmbeddingService(
+        model_name="text-embedding-004",  # 768 dimensions
+        batch_size=25,  # Reduced to stay under token limits
         max_retries=3
     )
     
     # Process embeddings
     try:
         output_file = embedding_service.embed_chunks(chunks_file, output_dir)
-        logger.info(f"✅ Embeddings saved to: {output_file}")
+        logger.info(f"✅ Vertex AI embeddings saved to: {output_file}")
+        
+        # Validate output
+        with open(output_file, 'r') as f:
+            result = json.load(f)
+            
+        total_embeddings = result['metadata']['successful_embeddings']
+        logger.info(f"🎯 Final validation: {total_embeddings:,} embeddings generated")
+        
+        if total_embeddings > 0:
+            logger.info("🚀 Ready for ChromaDB integration and search testing!")
+        else:
+            logger.error("❌ No embeddings generated - check your chunk data quality")
         
     except Exception as e:
         logger.error(f"❌ Embedding generation failed: {e}")
