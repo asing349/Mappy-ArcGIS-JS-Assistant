@@ -45,7 +45,7 @@ class MappyRAGEngine:
     
     def __init__(self, 
                  gemini_api_key: Optional[str] = None,
-                 gemini_model: str = "gemini-1.5-flash",
+                 gemini_model: str = "gemini-2.5-flash",
                  max_context_length: int = 8000,
                  max_search_results: int = 10):
         """

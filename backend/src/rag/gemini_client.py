@@ -30,7 +30,7 @@ class GeminiClient:
     
     def __init__(self, 
                  api_key: Optional[str] = None,
-                 model_name: str = "gemini-1.5-flash",
+                 model_name: str = "gemini-2.5-flash",
                  max_retries: int = 3):
         """
         Initialize Gemini client
