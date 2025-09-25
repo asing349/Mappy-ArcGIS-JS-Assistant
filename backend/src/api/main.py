@@ -34,16 +34,15 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# Read the client origin from environment variables
-allowed_origins = []
-client_origin = os.getenv("CLIENT_ORIGIN")
-if client_origin:
-    allowed_origins.append(client_origin)
-
 # Configure CORS for frontend integration
+allowed_origins = [
+    "https://mappy-js-sdk.vercel.app",
+    "http://localhost:3000"
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins, # Use the variable here
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
