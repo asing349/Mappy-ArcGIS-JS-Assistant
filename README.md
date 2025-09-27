@@ -2,6 +2,9 @@
 
 An AI-powered documentation assistant that helps developers work with the ArcGIS JavaScript SDK through intelligent search and contextual responses.
 
+### Documentqation owned by Esri
+Link: [ArcGIS Maps SDK for JavaScript](https://developers.arcgis.com/javascript/latest/)
+
 ## What Mappy Does
 
 Mappy transforms the extensive ArcGIS JavaScript SDK documentation into an intelligent, conversational assistant that:
