@@ -37,7 +37,8 @@ app = FastAPI(
 # Configure CORS for frontend integration
 allowed_origins = [
     "https://mappy-js-sdk.vercel.app",
-    "http://localhost:3000"
+    "http://localhost:3000",
+    "vscode-webview://*"
 ]
 
 app.add_middleware(
