@@ -100,7 +100,10 @@ export type WebviewMessageType =
     | 'error'
     | 'insert-code'
     | 'clear-history'
-    | 'open-url';
+    | 'open-url'
+    | 'reset'
+    | 'reset-from-webview'
+    | 'populate-input';
 
 /**
  * Message sent from webview to extension

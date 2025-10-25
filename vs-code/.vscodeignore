@@ -1,6 +1,7 @@
 .vscode/**
 .vscode-test/**
 src/**
+!src/webview/ui/**
 .gitignore
 .yarnrc
 vsc-extension-quickstart.md
@@ -8,6 +9,14 @@ vsc-extension-quickstart.md
 **/.eslintrc.json
 **/*.map
 **/*.ts
+!out/**/*.js
 node_modules/**
-.git/**
+.github/**
 *.vsix
+.DS_Store
+npm-debug.log
+.editorconfig
+test.js
+**/*.md
+!README.md
+!CHANGELOG.md

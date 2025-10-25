@@ -1,6 +1,20 @@
-out/
-node_modules/
-*.vsix
+# Dependencies
+/node_modules/
+
+# VSCode extension specific
 .vscode-test/
+/out/
+*.vsix
+
+# Logs
 *.log
-out
+
+# OS generated files
+.DS_Store
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local

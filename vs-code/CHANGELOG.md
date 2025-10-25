@@ -2,6 +2,23 @@
 
 All notable changes to the "Mappy - ArcGIS JavaScript SDK Assistant" extension will be documented in this file.
 
+## [0.3.0] - 2024-10-25
+
+### Added
+- **Module 3: Chat Sidebar Interface** - Beautiful chat UI in VS Code
+  - Chat panel in sidebar with VS Code theme integration
+  - Message history with user/AI message bubbles
+  - Syntax-highlighted code blocks
+  - Copy and Insert buttons for code
+  - Clickable source citations with relevance scores
+  - Loading animation during API calls
+  - Example questions on empty state
+  - Persistent message history across sessions
+  - Auto-resizing text input
+  - Keyboard shortcuts (Enter to send, Shift+Enter for new line)
+- Chat panel integrates seamlessly with existing API client
+- All messages styled to match VS Code theme
+
 ## [0.2.0] - 2024-10-25
 
 ### Added
@@ -34,10 +51,10 @@ All notable changes to the "Mappy - ArcGIS JavaScript SDK Assistant" extension w
 - Logging utility
 - Configuration manager
 
-### Planned for Next Release (0.3.0)
-- Module 3: Chat sidebar interface
-- Module 4: Code insertion functionality
+### Planned for Next Release (0.4.0)
+- Module 4: Code insertion with smart indentation
 - Module 5: Hover documentation provider
+- Module 6: Packaging and distribution
 
 ## [Unreleased]
 

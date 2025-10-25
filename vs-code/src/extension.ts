@@ -12,9 +12,13 @@ import * as vscode from 'vscode';
 import { logger, LogLevel } from './utils/logger';
 import { ConfigManager } from './utils/config';
 import { getAPIClient, resetAPIClient } from './api/MappyAPIClient';
+import { ChatPanelProvider } from './webview/ChatPanelProvider';
+import { MappyHoverProvider } from './hover/HoverProvider';
 
 // Status bar item
 let statusBarItem: vscode.StatusBarItem;
+let chatPanelProvider: ChatPanelProvider;
+let hoverProvider: MappyHoverProvider;
 
 /**
  * Extension activation
@@ -32,6 +36,21 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Initialize status bar
     setupStatusBar(context);
+
+    // Register chat panel provider
+    chatPanelProvider = new ChatPanelProvider(context.extensionUri);
+    context.subscriptions.push(
+        vscode.window.registerWebviewViewProvider(
+            ChatPanelProvider.viewType,
+            chatPanelProvider
+        )
+    );
+    logger.info('Chat panel provider registered');
+
+    // Initialize hover provider (but don't register automatic hover - too many API calls!)
+    // Instead, we'll use it via context menu command
+    hoverProvider = new MappyHoverProvider();
+    logger.info('Hover provider initialized (context menu only)');
 
     // Register commands
     registerCommands(context);
@@ -134,8 +153,65 @@ function registerCommands(context: vscode.ExtensionContext) {
     // Command: Open Chat
     const openChatCmd = vscode.commands.registerCommand('mappy.openChat', () => {
         logger.info('Command: Open Chat');
-        vscode.window.showInformationMessage('🗺️ Mappy Chat will open here (Module 3)');
-        // TODO: Implement in Module 3
+        vscode.commands.executeCommand('mappy.chatView.focus');
+    });
+
+    // Command: Populate Chat Query (from hover link)
+    const populateChatQueryCmd = vscode.commands.registerCommand('mappy.populateChatQuery', (symbol: string) => {
+        logger.info(`Command: Populate Chat Query for "${symbol}"`);
+        
+        // Open the chat panel first
+        vscode.commands.executeCommand('mappy.chatView.focus');
+        
+        // Send message to webview to populate the input (but not send)
+        if (chatPanelProvider) {
+            const queryText = `Tell me about ${symbol} in ArcGIS JavaScript SDK`;
+            chatPanelProvider.sendMessage({ 
+                type: 'populate-input',
+                data: { text: queryText }
+            });
+        }
+    });
+
+    // Command: Ask About Symbol (right-click context menu)
+    const askAboutSymbolCmd = vscode.commands.registerCommand('mappy.askAboutSymbol', async () => {
+        logger.info('Command: Ask About Symbol');
+        
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            vscode.window.showWarningMessage('No active editor');
+            return;
+        }
+
+        // Get the word under cursor or selection
+        const selection = editor.selection;
+        const wordRange = editor.document.getWordRangeAtPosition(selection.active);
+        
+        if (!wordRange) {
+            vscode.window.showWarningMessage('No symbol selected. Place cursor on an ArcGIS class name.');
+            return;
+        }
+
+        const symbol = editor.document.getText(wordRange);
+        
+        // Check if it looks like an ArcGIS symbol
+        if (!/^[A-Z]/.test(symbol)) {
+            vscode.window.showWarningMessage(`"${symbol}" doesn't look like an ArcGIS class. Try a capitalized name like "Map" or "MapView".`);
+            return;
+        }
+
+        logger.info(`Asking about symbol: "${symbol}"`);
+
+        // Open chat and populate with the question
+        vscode.commands.executeCommand('mappy.chatView.focus');
+        
+        if (chatPanelProvider) {
+            const queryText = `What is ${symbol} in ArcGIS JavaScript SDK?`;
+            chatPanelProvider.sendMessage({ 
+                type: 'populate-input',
+                data: { text: queryText }
+            });
+        }
     });
 
     // Command: Ask Question
@@ -210,10 +286,15 @@ function registerCommands(context: vscode.ExtensionContext) {
     const clearCacheCmd = vscode.commands.registerCommand('mappy.clearCache', () => {
         logger.info('Command: Clear Cache');
         const apiClient = getAPIClient();
-        const statsBefore = apiClient.getCacheStats();
+        const apiStatsBefore = apiClient.getCacheStats();
         apiClient.clearCache();
+        
+        // Also clear hover cache
+        const hoverStatsBefore = hoverProvider.getCacheStats();
+        hoverProvider.clearCache();
+        
         vscode.window.showInformationMessage(
-            `Cache cleared successfully (${statsBefore.size} entries removed)`
+            `Cache cleared successfully (API: ${apiStatsBefore.size}, Hover: ${hoverStatsBefore.size} entries)`
         );
     });
 
@@ -248,13 +329,47 @@ function registerCommands(context: vscode.ExtensionContext) {
         });
     });
 
+    // Command: Reset Chat Panel
+    const resetChatCmd = vscode.commands.registerCommand('mappy.resetChat', async () => {
+        logger.info('Command: Reset Chat');
+        
+        const confirmed = await vscode.window.showWarningMessage(
+            'Reset chat panel? This will clear all message history.',
+            { modal: true },
+            'Reset'
+        );
+        
+        if (confirmed === 'Reset') {
+            if (chatPanelProvider) {
+                chatPanelProvider.sendMessage({ type: 'reset' });
+                vscode.window.showInformationMessage('Chat panel reset successfully');
+                logger.info('Chat panel reset');
+            } else {
+                vscode.window.showErrorMessage('Chat panel not available.');
+            }
+        }
+    });
+
+    // Command: Show Hover Cache Stats (hidden, for debugging)
+    const hoverStatsCmd = vscode.commands.registerCommand('mappy.hoverStats', () => {
+        const stats = hoverProvider.getCacheStats();
+        vscode.window.showInformationMessage(
+            `Hover Cache: ${stats.size} symbols cached\n${stats.symbols.join(', ')}`
+        );
+        logger.info('Hover cache stats:', stats);
+    });
+
     // Register all commands for disposal
     context.subscriptions.push(
         openChatCmd,
+        populateChatQueryCmd,
+        askAboutSymbolCmd,
         askQuestionCmd,
         clearCacheCmd,
         showLogsCmd,
-        testConnectionCmd
+        testConnectionCmd,
+        resetChatCmd,
+        hoverStatsCmd
     );
 
     logger.info('✅ Commands registered');

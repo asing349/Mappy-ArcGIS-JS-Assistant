@@ -1,10 +1,19 @@
 {
-  "name": "mappy-arcgis-assistant",
-  "displayName": "Mappy - ArcGIS JavaScript SDK Assistant",
-  "description": "AI-powered documentation assistant for ArcGIS JavaScript SDK. Ask questions, get answers, and insert code directly into your editor.",
-  "version": "0.1.0",
-  "publisher": "your-publisher-name",
+  "name": "mappy-js-sdk",
+  "displayName": "Mappy - ArcGIS JS SDK Docs",
+  "description": "AI-powered documentation assistant for ArcGIS JavaScript SDK. Get instant answers, code examples, and context-aware help.",
+  "version": "0.4.0",
+  "publisher": "ajitsingh",
   "icon": "media/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/asing349/Mappy-ArcGIS-JS-Assistant"
+  },
+  "homepage": "https://mappy-js-sdk.vercel.app",
+  "bugs": {
+    "url": "https://github.com/asing349/Mappy-ArcGIS-JS-Assistant/issues"
+  },
+  "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -20,8 +29,12 @@
     "documentation",
     "ai",
     "assistant",
+    "sdk",
     "maps",
-    "gis"
+    "gis",
+    "docs",
+    "code-examples",
+    "developer-tools"
   ],
   "activationEvents": [
     "onLanguage:javascript",
@@ -34,11 +47,17 @@
       {
         "command": "mappy.openChat",
         "title": "Open Chat",
-        "category": "Mappy"
+        "category": "Mappy",
+        "icon": "$(comment-discussion)"
       },
       {
         "command": "mappy.askQuestion",
         "title": "Ask Question",
+        "category": "Mappy"
+      },
+      {
+        "command": "mappy.askAboutSymbol",
+        "title": "Ask Mappy About This",
         "category": "Mappy"
       },
       {
@@ -50,14 +69,28 @@
         "command": "mappy.testConnection",
         "title": "Test API Connection",
         "category": "Mappy"
+      },
+      {
+        "command": "mappy.resetChat",
+        "title": "Reset Chat Panel",
+        "category": "Mappy"
       }
     ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "mappy.askAboutSymbol",
+          "when": "editorTextFocus && (resourceLangId == javascript || resourceLangId == typescript || resourceLangId == javascriptreact || resourceLangId == typescriptreact)",
+          "group": "mappy@1"
+        }
+      ]
+    },
     "viewsContainers": {
       "activitybar": [
         {
           "id": "mappy-sidebar",
           "title": "Mappy Assistant",
-          "icon": "media/icon.svg"
+          "icon": "media/icon.png"
         }
       ]
     },
@@ -75,8 +108,8 @@
       "properties": {
         "mappy.apiUrl": {
           "type": "string",
-          "default": "http://localhost:8000",
-          "description": "URL of the Mappy backend API",
+          "default": "https://mappy-arcgis-js-assistant-production.up.railway.app",
+          "description": "Mappy API URL (default is official hosted instance)",
           "order": 1
         },
         "mappy.enableChat": {
@@ -85,23 +118,17 @@
           "description": "Enable chat sidebar",
           "order": 2
         },
-        "mappy.enableHover": {
-          "type": "boolean",
-          "default": true,
-          "description": "Enable hover documentation",
-          "order": 3
-        },
         "mappy.cacheTimeout": {
           "type": "number",
           "default": 300,
           "description": "Cache timeout in seconds (default: 5 minutes)",
-          "order": 4
+          "order": 3
         },
         "mappy.sdkVersion": {
           "type": "string",
           "default": "4.34",
           "description": "ArcGIS JavaScript SDK version",
-          "order": 5
+          "order": 4
         }
       }
     }
