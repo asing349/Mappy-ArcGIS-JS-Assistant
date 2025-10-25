@@ -13,7 +13,8 @@ import {
   Group,
   Anchor,
   useMantineColorScheme,
-  useComputedColorScheme
+  useComputedColorScheme,
+  Badge
 } from '@mantine/core';
 import { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
@@ -102,10 +103,12 @@ export default function InteractivePage() {
   const landingTaglineRef = useRef<HTMLParagraphElement>(null);
   const landingButtonRef = useRef<HTMLButtonElement>(null);
   const landingLinksRef = useRef<HTMLDivElement>(null);
+  const landingBadgeRef = useRef<HTMLDivElement>(null);
   const infoPanelRef = useRef<HTMLDivElement>(null);
   const infoPanelTitleRef = useRef<HTMLHeadingElement>(null);
   const infoPanelTaglineRef = useRef<HTMLParagraphElement>(null);
   const infoPanelLinksRef = useRef<HTMLDivElement>(null);
+  const infoPanelBadgeRef = useRef<HTMLDivElement>(null);
   const chatPanelRef = useRef<HTMLDivElement>(null);
   const flipState = useRef<gsap.Flip["FlipState"] | undefined>(undefined);
 
@@ -121,7 +124,7 @@ export default function InteractivePage() {
       const tl = gsap.timeline();
       tl.add(
         Flip.from(flipState.current, {
-          targets: [infoPanelTitleRef.current, infoPanelTaglineRef.current, infoPanelLinksRef.current],
+          targets: [infoPanelTitleRef.current, infoPanelTaglineRef.current, infoPanelLinksRef.current, infoPanelBadgeRef.current],
           duration: 1.4,
           ease: 'power4.inOut',
           scale: true,
@@ -135,7 +138,7 @@ export default function InteractivePage() {
       const tl = gsap.timeline();
       tl.add(
         Flip.from(flipState.current, {
-          targets: [landingTitleRef.current, landingTaglineRef.current, landingLinksRef.current],
+          targets: [landingTitleRef.current, landingTaglineRef.current, landingLinksRef.current, landingBadgeRef.current],
           duration: 1.4,
           ease: 'power4.inOut',
           scale: true,
@@ -148,14 +151,14 @@ export default function InteractivePage() {
   }, [isChatStarted]);
 
   const handleStartChat = () => {
-    const morphElements = [landingTitleRef.current, landingTaglineRef.current, landingLinksRef.current];
+    const morphElements = [landingTitleRef.current, landingTaglineRef.current, landingLinksRef.current, landingBadgeRef.current];
     flipState.current = Flip.getState(morphElements);
     gsap.to(landingContentRef.current, { opacity: 0, duration: 0.5, ease: 'power2.in' });
     setChatStarted(true);
   };
 
   const handleCloseChat = () => {
-    const morphElements = [infoPanelTitleRef.current, infoPanelTaglineRef.current, infoPanelLinksRef.current];
+    const morphElements = [infoPanelTitleRef.current, infoPanelTaglineRef.current, infoPanelLinksRef.current, infoPanelBadgeRef.current];
     flipState.current = Flip.getState(morphElements);
     gsap.to(chatPanelRef.current, {
       opacity: 0,
@@ -193,6 +196,11 @@ export default function InteractivePage() {
           {!isChatStarted && (
             <Center h="100%" style={{ transition: 'opacity 0.5s ease-out' }}>
               <Stack ref={landingContentRef} align="center" gap={40}>
+                <Box ref={landingBadgeRef} data-flip-id="mappy-badge" style={{ position: 'absolute', top: 20, left: 20 }}>
+                  <Badge variant="gradient" gradient={{ from: 'red', to: 'orange' }}>
+                    Updated to Latest v4.34
+                  </Badge>
+                </Box>
                 <Title ref={landingTitleRef} data-flip-id="mappy-title" order={1} style={{ fontSize: 'clamp(3rem, 10vw, 5.5rem)', fontFamily: 'var(--font-orbitron)', fontWeight: 900, background: 'linear-gradient(135deg, #3b82f6 0%, #06b6d4 50%, #8b5cf6 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', textAlign: 'center', letterSpacing: '0.02em' }}>
                   {'{ Mappy }'}
                 </Title>
@@ -213,7 +221,7 @@ export default function InteractivePage() {
           )}
 
           {isChatStarted && (
-            <InfoPanel ref={infoPanelRef} titleRef={infoPanelTitleRef} taglineRef={infoPanelTaglineRef} linksRef={infoPanelLinksRef} />
+            <InfoPanel ref={infoPanelRef} titleRef={infoPanelTitleRef} taglineRef={infoPanelTaglineRef} linksRef={infoPanelLinksRef} badgeRef={infoPanelBadgeRef} />
           )}
         </Box>
 

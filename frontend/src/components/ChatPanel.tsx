@@ -590,7 +590,7 @@ const ChatPanel = React.forwardRef<HTMLDivElement, ChatPanelProps>(({ onClose },
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: "Hello! I'm **Mappy**, your ArcGIS JavaScript SDK documentation assistant. Ask me anything about ArcGIS development, APIs, or implementation questions!\n\nTry asking: `How do I create a map?` or `Show me feature layer examples`",
+      text: "Hello! I'm **Mappy**, your ArcGIS JavaScript SDK documentation assistant. Ask me anything about ArcGIS development, APIs, or implementation questions!\n\nTry asking: `How do I create a map?` or `How do I use FlowRenderer in 3D scenes? - [v4.34 example]`",
       sender: 'mappy',
       timestamp: new Date()
     }

@@ -39,7 +39,7 @@ class SimpleMappySearch:
         # Qdrant configuration
         self.qdrant_url = os.getenv("QDRANT_URL", "https://7c22af82-0689-41e8-86d2-705b20cac60a.us-west-1-0.aws.cloud.qdrant.io")
         self.api_key = os.getenv("QDRANT_API_KEY")
-        self.collection_name = "arcgis_docs"
+        self.collection_name = "arcgis_docs_4_34"
         
         if not self.api_key:
             raise ValueError("QDRANT_API_KEY not found in environment variables")

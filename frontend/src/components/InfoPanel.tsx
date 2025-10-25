@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, Title, Text, Group, Anchor, Divider, ActionIcon } from '@mantine/core';
+import { Box, Title, Text, Group, Anchor, Divider, ActionIcon, Badge } from '@mantine/core';
 import { IconBrandGithub, IconBrandLinkedin } from '@tabler/icons-react';
 import React from 'react';
 
@@ -8,10 +8,11 @@ type InfoPanelProps = {
   titleRef: React.Ref<HTMLHeadingElement>;
   taglineRef: React.Ref<HTMLParagraphElement>;
   linksRef: React.Ref<HTMLDivElement>;
+  badgeRef: React.Ref<HTMLDivElement>;
 };
 
 const InfoPanel = React.forwardRef<HTMLDivElement, InfoPanelProps>(
-  ({ titleRef, taglineRef, linksRef }, ref) => {
+  ({ titleRef, taglineRef, linksRef, badgeRef }, ref) => {
     return (
       <Box ref={ref} p="xl" h="100vh" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
         <Box style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: 'center' }}>
@@ -31,11 +32,16 @@ const InfoPanel = React.forwardRef<HTMLDivElement, InfoPanelProps>(
             {'{ Mappy }'}
           </Title>
           <Text ref={taglineRef} data-flip-id="mappy-tagline" c="dimmed" size="sm" mt={4}>
-            Esri ArcGIS Maps JS SDK...
+            Version 4.34 Esri ArcGIS Maps JS SDK...
           </Text>
         </Box>
 
         <Box ref={linksRef} data-flip-id="mappy-links">
+          <Box ref={badgeRef} data-flip-id="mappy-badge" style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+            <Badge variant="gradient" gradient={{ from: 'red', to: 'orange' }}>
+                Updated to Latest v4.34
+            </Badge>
+          </Box>
           <Divider mb="md" />
           <Group justify="space-between" align="center">
             <Text size="sm" c="dimmed">Developed By Ajit Singh</Text>
