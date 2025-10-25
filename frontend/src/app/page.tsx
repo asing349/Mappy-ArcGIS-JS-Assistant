@@ -196,14 +196,14 @@ export default function InteractivePage() {
           {!isChatStarted && (
             <Center h="100%" style={{ transition: 'opacity 0.5s ease-out' }}>
               <Stack ref={landingContentRef} align="center" gap={40}>
-                <Box ref={landingBadgeRef} data-flip-id="mappy-badge" style={{ position: 'absolute', top: 20, left: 20 }}>
+                <Title ref={landingTitleRef} data-flip-id="mappy-title" order={1} style={{ fontSize: 'clamp(3rem, 10vw, 5.5rem)', fontFamily: 'var(--font-orbitron)', fontWeight: 900, background: 'linear-gradient(135deg, #3b82f6 0%, #06b6d4 50%, #8b5cf6 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', textAlign: 'center', letterSpacing: '0.02em' }}>
+                  {'{ Mappy }'}
+                </Title>
+                <Box ref={landingBadgeRef} data-flip-id="mappy-badge">
                   <Badge variant="gradient" gradient={{ from: 'red', to: 'orange' }}>
                     Updated to Latest v4.34
                   </Badge>
                 </Box>
-                <Title ref={landingTitleRef} data-flip-id="mappy-title" order={1} style={{ fontSize: 'clamp(3rem, 10vw, 5.5rem)', fontFamily: 'var(--font-orbitron)', fontWeight: 900, background: 'linear-gradient(135deg, #3b82f6 0%, #06b6d4 50%, #8b5cf6 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', textAlign: 'center', letterSpacing: '0.02em' }}>
-                  {'{ Mappy }'}
-                </Title>
                 <Text ref={landingTaglineRef} data-flip-id="mappy-tagline" size="xl" c={isDark ? "dimmed" : "gray.6"} ta="center" maw={600} style={{ fontSize: '1.4rem', lineHeight: 1.6, fontWeight: 400 }}>
                   RAG implementation on Esri ArcGIS Maps JS SDK Documentation.
                 </Text>
