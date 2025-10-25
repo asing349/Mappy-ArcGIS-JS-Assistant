@@ -1,0 +1,129 @@
+{
+  "name": "mappy-arcgis-assistant",
+  "displayName": "Mappy - ArcGIS JavaScript SDK Assistant",
+  "description": "AI-powered documentation assistant for ArcGIS JavaScript SDK. Ask questions, get answers, and insert code directly into your editor.",
+  "version": "0.1.0",
+  "publisher": "your-publisher-name",
+  "icon": "media/icon.png",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Snippets",
+    "Other"
+  ],
+  "keywords": [
+    "arcgis",
+    "esri",
+    "javascript",
+    "documentation",
+    "ai",
+    "assistant",
+    "maps",
+    "gis"
+  ],
+  "activationEvents": [
+    "onLanguage:javascript",
+    "onLanguage:typescript",
+    "onLanguage:html"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "mappy.openChat",
+        "title": "Open Chat",
+        "category": "Mappy"
+      },
+      {
+        "command": "mappy.askQuestion",
+        "title": "Ask Question",
+        "category": "Mappy"
+      },
+      {
+        "command": "mappy.clearCache",
+        "title": "Clear Cache",
+        "category": "Mappy"
+      },
+      {
+        "command": "mappy.testConnection",
+        "title": "Test API Connection",
+        "category": "Mappy"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "mappy-sidebar",
+          "title": "Mappy Assistant",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "mappy-sidebar": [
+        {
+          "type": "webview",
+          "id": "mappy.chatView",
+          "name": "Chat"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Mappy Assistant",
+      "properties": {
+        "mappy.apiUrl": {
+          "type": "string",
+          "default": "http://localhost:8000",
+          "description": "URL of the Mappy backend API",
+          "order": 1
+        },
+        "mappy.enableChat": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable chat sidebar",
+          "order": 2
+        },
+        "mappy.enableHover": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable hover documentation",
+          "order": 3
+        },
+        "mappy.cacheTimeout": {
+          "type": "number",
+          "default": 300,
+          "description": "Cache timeout in seconds (default: 5 minutes)",
+          "order": 4
+        },
+        "mappy.sdkVersion": {
+          "type": "string",
+          "default": "4.34",
+          "description": "ArcGIS JavaScript SDK version",
+          "order": 5
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "lint": "eslint src --ext ts",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.x",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.x",
+    "@typescript-eslint/parser": "^6.x",
+    "eslint": "^8.x",
+    "typescript": "^5.3.0",
+    "@vscode/vsce": "^2.22.0"
+  },
+  "dependencies": {
+    "axios": "^1.6.0"
+  }
+}

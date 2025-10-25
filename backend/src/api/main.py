@@ -37,7 +37,8 @@ app = FastAPI(
 # Configure CORS for frontend integration
 allowed_origins = [
     "https://mappy-js-sdk.vercel.app",
-    "http://localhost:3000"
+    "http://localhost:3000",
+    "vscode-webview://*"
 ]
 
 app.add_middleware(
@@ -177,7 +178,7 @@ async def health_check(rag_engine: MappyRAGEngine = Depends(get_rag_engine)):
         
         # Determine overall health
         all_working = all(
-            status == "working" 
+            status in ["working", "initialized"]
             for status in system_status.values() 
             if isinstance(status, str) and not status.startswith("failed")
         )

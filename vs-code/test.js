@@ -1,0 +1,1 @@
+import Map from "@arcgis/core/Map";
