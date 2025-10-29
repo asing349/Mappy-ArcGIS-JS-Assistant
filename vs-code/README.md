@@ -5,7 +5,7 @@
 Get instant answers, code examples, and context-aware help directly in VS Code. Powered by advanced RAG (Retrieval-Augmented Generation) technology with the complete ArcGIS JavaScript SDK 4.34 documentation.
 
 [![VS Code Marketplace](https://img.shields.io/badge/VS%20Code-Marketplace-blue)](https://marketplace.visualstudio.com/items?itemName=ajitsingh.mappy-js-sdk)
-[![Version](https://img.shields.io/badge/version-0.4.0-green)](https://github.com/asing349/Mappy-ArcGIS-JS-Assistant)
+[![Version](https://img.shields.io/badge/version-0.5.0-green)](https://github.com/asing349/Mappy-ArcGIS-JS-Assistant)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 ---

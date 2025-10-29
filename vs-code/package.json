@@ -2,7 +2,7 @@
   "name": "mappy-js-sdk",
   "displayName": "Mappy - ArcGIS JS SDK Docs",
   "description": "AI-powered documentation assistant for ArcGIS JavaScript SDK. Get instant answers, code examples, and context-aware help.",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "publisher": "ajitsingh",
   "icon": "media/icon.png",
   "repository": {

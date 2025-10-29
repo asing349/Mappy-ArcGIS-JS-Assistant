@@ -19,7 +19,7 @@ export class MappyAPIClient {
         
         this.client = axios.create({
             baseURL: apiUrl,
-            timeout: 30000, // 30 second timeout
+            timeout: 50000, // 50 second timeout
             headers: {
                 'Content-Type': 'application/json'
             }
