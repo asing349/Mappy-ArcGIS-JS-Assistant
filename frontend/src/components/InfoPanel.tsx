@@ -1,7 +1,7 @@
 'use client';
 
 import { Box, Title, Text, Group, Anchor, Divider, ActionIcon, Badge } from '@mantine/core';
-import { IconBrandGithub, IconBrandLinkedin } from '@tabler/icons-react';
+import { IconBrandGithub, IconBrandLinkedin, IconBrandVscode } from '@tabler/icons-react';
 import React from 'react';
 
 type InfoPanelProps = {
@@ -51,6 +51,17 @@ const InfoPanel = React.forwardRef<HTMLDivElement, InfoPanelProps>(
               </Anchor>
               <Anchor href="https://linkedin.com/in/itsmeajit" target="_blank" aria-label="LinkedIn">
                 <ActionIcon variant="subtle" color="gray"><IconBrandLinkedin /></ActionIcon>
+              </Anchor>
+              <Anchor
+                href="https://marketplace.visualstudio.com/items?itemName=ajitsingh.mappy-js-sdk"
+                target="_blank"
+                aria-label="VS Code Extension"
+                style={{ textDecoration: 'none' }}
+              >
+                <Group gap={4} style={{ alignItems: 'center' }}>
+                  <ActionIcon variant="subtle" color="blue" size="sm"><IconBrandVscode size={18} /></ActionIcon>
+                  <Text size="xs" c="dimmed">Available on VS Code</Text>
+                </Group>
               </Anchor>
             </Group>
           </Group>

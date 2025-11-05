@@ -2,6 +2,11 @@
 
 All notable changes to the "Mappy - ArcGIS JavaScript SDK Assistant" extension will be documented in this file.
 
+## [0.5.3] - 2025-10-29
+
+### Fixed
+- Publish error due to Azure service outage.
+
 ## [0.5.0] - 2025-10-29
 
 ### Fixed

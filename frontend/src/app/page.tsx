@@ -19,7 +19,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import { Flip } from 'gsap/Flip';
-import { IconBrandGithub, IconBrandLinkedin } from '@tabler/icons-react';
+import { IconBrandGithub, IconBrandLinkedin, IconBrandVscode } from '@tabler/icons-react';
 
 import InfoPanel from '@/components/InfoPanel';
 import ChatPanel from '@/components/ChatPanel';
@@ -211,9 +211,20 @@ export default function InteractivePage() {
                   Start Conversation
                 </Button>
                 <Box ref={landingLinksRef} data-flip-id="mappy-links">
-                  <Group gap="xs" mt="md">
+                  <Group gap="xs" mt="md" justify="center">
                       <Anchor href="https://github.com/asing349" target="_blank" aria-label="GitHub"><ActionIcon variant="subtle" color="gray"><IconBrandGithub /></ActionIcon></Anchor>
                       <Anchor href="https://linkedin.com/in/itsmeajit" target="_blank" aria-label="LinkedIn"><ActionIcon variant="subtle" color="gray"><IconBrandLinkedin /></ActionIcon></Anchor>
+                      <Anchor
+                        href="https://marketplace.visualstudio.com/items?itemName=ajitsingh.mappy-js-sdk"
+                        target="_blank"
+                        aria-label="VS Code Extension"
+                        style={{ textDecoration: 'none' }}
+                      >
+                        <Group gap="xs" style={{ alignItems: 'center' }}>
+                          <ActionIcon variant="subtle" color="blue"><IconBrandVscode /></ActionIcon>
+                          <Text size="sm" c={isDark ? "dimmed" : "gray.6"}>Available on VS Code</Text>
+                        </Group>
+                      </Anchor>
                   </Group>
                 </Box>
               </Stack>
